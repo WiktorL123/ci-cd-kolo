@@ -5,5 +5,5 @@ function sum(a, b) {
   function multiply(a, b) {
     return a * b;
   }
-   
+   //komentarz
   module.exports = { sum, multiply };
