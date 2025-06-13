@@ -9,7 +9,7 @@ jobs:
   lint:
     if: github.ref != 'refs/heads/main'
     name: Lint (ESLint)
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v3
@@ -21,7 +21,7 @@ jobs:
   unit_tests:
     if: github.ref != 'refs/heads/main'
     name: Unit Tests
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v3
@@ -33,7 +33,7 @@ jobs:
   build:
     if: always()
     name: Build & Archive Docker Image
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs:
       - lint
       - unit_tests
@@ -50,7 +50,7 @@ jobs:
   deploy_staging:
     if: always() && github.ref == 'refs/heads/main'
     name: Deploy to Staging
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: build
     environment:
       name: staging
@@ -63,7 +63,7 @@ jobs:
   deploy_production:
     if: always() && github.ref == 'refs/heads/main'
     name: Deploy to Production
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: deploy_staging
     environment:
       name: production
@@ -76,7 +76,7 @@ jobs:
  
   final_report:
     name: Final Report
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs:
       - lint
       - unit_tests
