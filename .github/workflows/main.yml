@@ -1,0 +1,98 @@
+name: CI/CD Pipeline
+ 
+on:
+  push:
+    branches:
+      - '**'
+ 
+jobs:
+  lint:
+    if: github.ref != 'refs/heads/main'
+    name: Lint (ESLint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - run: npm install
+      - run: npm run lint
+ 
+  unit_tests:
+    if: github.ref != 'refs/heads/main'
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - run: npm install
+      - run: npm test
+ 
+  build:
+    if: always()
+    name: Build & Archive Docker Image
+    runs-on: ubuntu-latest
+    needs:
+      - lint
+      - unit_tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - run: docker build -t wiktorl/ci-cd-kolo:latest .
+      - run: docker save wiktorl/ci-cd-kolo:latest -o image.tar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: image.tar
+ 
+  deploy_staging:
+    if: always() && github.ref == 'refs/heads/main'
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: staging
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+      - run: echo ">>> Symulacja obraz wdrożony na staging."
+ 
+  deploy_production:
+    if: always() && github.ref == 'refs/heads/main'
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: deploy_staging
+    environment:
+      name: production
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+      - run: docker load -i image.tar
+      - run: docker push wiktorl/ci-cd-kolo:latest
+ 
+  final_report:
+    name: Final Report
+    runs-on: ubuntu-latest
+    needs:
+      - lint
+      - unit_tests
+      - build
+      - deploy_staging
+      - deploy_production
+    if: always()
+    steps:
+      - run: |
+          echo "==== Pipeline Report ====" > raport.txt
+          echo "Lint: ${{ needs.lint.result || 'skipped' }}" >> raport.txt
+          echo "Unit Tests: ${{ needs.unit_tests.result || 'skipped' }}" >> raport.txt
+          echo "Build: ${{ needs.build.result || 'skipped' }}" >> raport.txt
+          echo "Staging: ${{ needs.deploy_staging.result || 'skipped' }}" >> raport.txt
+          echo "Production: ${{ needs.deploy_production.result || 'skipped' }}" >> raport.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-report
+          path: raport.txt
